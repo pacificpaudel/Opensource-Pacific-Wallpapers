@@ -253,7 +253,12 @@
 
   function updateClock() {
     const now = new Date();
-    els.timeEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // en-US so it always reads "2:45 PM", even in locales that default to 24-hour
+    els.timeEl.textContent = now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
     els.dateEl.textContent = now.toLocaleDateString([], {
       weekday: "long",
       month: "long",

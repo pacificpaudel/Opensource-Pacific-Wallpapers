@@ -25,11 +25,6 @@
     return { icon: "⛈️", label: "Thunderstorm" };
   }
 
-  function useFahrenheit() {
-    const region = (navigator.language || "").split("-")[1] || "";
-    return ["US", "LR", "MM", "BS", "BZ", "KY", "PW"].includes(region.toUpperCase());
-  }
-
   function getCache() {
     return new Promise((resolve) => {
       chrome.storage.local.get({ [CACHE_KEY]: null }, (data) => resolve(data[CACHE_KEY]));
@@ -108,11 +103,13 @@
   }
 
   async function init() {
-    const unit = useFahrenheit() ? "fahrenheit" : "celsius";
+    const unit = "celsius";
     const cache = await getCache();
-    const fresh = cache && cache.unit === unit && Date.now() - cache.fetchedAt < CACHE_TTL_MS;
+    // ignore forecasts cached in another unit (older versions used °F in the US)
+    const usable = cache && cache.unit === unit && cache.forecast;
+    const fresh = usable && Date.now() - cache.fetchedAt < CACHE_TTL_MS;
 
-    if (cache && cache.forecast) render(cache.forecast);
+    if (usable) render(cache.forecast);
     if (fresh) return;
 
     try {
