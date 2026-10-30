@@ -43,6 +43,32 @@
     <span id="browser-count-number" class="browser-count-number">0</span>
   </div>
 
+  <div id="photo-details" class="photo-details" hidden>
+    <a id="photo-description" class="photo-detail" target="_blank" rel="noopener noreferrer">
+      <span class="photo-detail-label">Description</span>
+      <span id="photo-description-text" class="photo-detail-text"></span>
+    </a>
+    <div class="photo-detail">
+      <span class="photo-detail-label">Place</span>
+      <span id="photo-location-text" class="photo-detail-text"></span>
+    </div>
+    <div class="photo-detail">
+      <span class="photo-detail-label">AI location</span>
+      <div class="photo-ai-location-row">
+        <span id="photo-ai-location-text" class="photo-detail-text"></span>
+        <a
+          id="photo-ai-map-link"
+          class="photo-ai-map-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Search this location on Google Maps"
+          title="Search this location on Google Maps"
+          hidden
+        >🗺️</a>
+      </div>
+    </div>
+  </div>
+
   <button id="gear-btn" class="gear-btn" title="Wallpaper settings" aria-label="Wallpaper settings">
     <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
       <path d="M19.14 12.94a7.07 7.07 0 0 0 .05-.94 7.07 7.07 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.14.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.42.32.66.22l2.39-.96c.49.38 1.04.7 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.14-.56 1.63-.94l2.39.96c.24.1.52.02.66-.22l1.92-3.32a.5.5 0 0 0-.12-.64ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/>
@@ -77,6 +103,18 @@
         <div class="button-row">
           <button id="save-key-btn" class="btn btn-secondary">Save key</button>
         </div>
+      </div>
+
+      <label class="field-label" for="openrouter-key-input">OpenRouter API key</label>
+      <input id="openrouter-key-input" type="password" placeholder="Paste your OpenRouter API key" autocomplete="off" spellcheck="false" />
+      <p class="hint">
+        Used to identify recognizable places in wallpaper images.
+        <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer">Get an OpenRouter key</a>.
+        Images are sent to OpenRouter for analysis automatically; each lookup may incur a charge.
+        The key is saved in this browser only.
+      </p>
+      <div class="button-row">
+        <button id="save-openrouter-key-btn" class="btn btn-secondary">Save AI key</button>
       </div>
 
       <label class="field-label" for="mode-select">Change frequency</label>

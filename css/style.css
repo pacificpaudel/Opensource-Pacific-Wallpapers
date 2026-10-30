@@ -58,6 +58,7 @@ html, body {
 }
 
 .date {
+  display: none;
   margin-top: 8px;
   font-size: 1.2rem;
   font-weight: 400;
@@ -67,11 +68,38 @@ html, body {
 /* sizes are in em so the whole row scales with its font-size */
 .weather {
   display: flex;
+  align-items: flex-end;
   gap: 0.875em;
   margin-top: 14px;
   font-size: 1rem;
   opacity: 0;
   transition: opacity 0.6s ease;
+}
+
+.weather-date {
+  width: 100%;
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+}
+
+.weather-future {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5em;
+}
+
+.weather-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3em;
+  min-width: 0;
 }
 
 .weather.loaded {
@@ -84,6 +112,16 @@ html, body {
   align-items: center;
   min-width: 2.95em;
   font-size: 0.85em;
+}
+
+.weather-day-today {
+  flex: none;
+  font-size: 1.7em;
+}
+
+.weather-days .weather-day {
+  flex: 1;
+  min-width: 0;
 }
 
 .weather-day-name {
@@ -104,6 +142,16 @@ html, body {
 .weather-temp-min {
   font-weight: 400;
   opacity: 0.65;
+}
+
+.weather-location {
+  max-width: 10em;
+  overflow: hidden;
+  font-size: 0.5em;
+  line-height: 1.2;
+  opacity: 0.85;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .footer-credit {
@@ -217,8 +265,7 @@ html, body {
   cursor: pointer;
   background: linear-gradient(180deg, #2b2b2b 0%, #161616 60%, #000000 100%);
   box-shadow:
-    0 4px 0 #000000,
-    0 8px 16px rgba(0, 0, 0, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
 }
@@ -226,8 +273,7 @@ html, body {
 .search-submit-3d:hover {
   background: linear-gradient(180deg, #4cd964 0%, #34b855 60%, #279a44 100%);
   box-shadow:
-    0 4px 0 #1f7a37,
-    0 10px 20px rgba(39, 154, 68, 0.55),
+    0 6px 14px rgba(39, 154, 68, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
@@ -235,8 +281,7 @@ html, body {
   background: linear-gradient(180deg, #3a75d8 0%, #2f66c2 60%, #2857ad 100%);
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 #2857ad,
-    0 2px 6px rgba(38, 90, 190, 0.5),
+    0 2px 6px rgba(38, 90, 190, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -345,7 +390,8 @@ html, body {
 }
 
 select,
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   width: 100%;
   padding: 6px 8px;
   border-radius: 6px;
@@ -357,7 +403,8 @@ input[type="text"] {
 }
 
 select:focus,
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus {
   border-color: rgba(120, 170, 255, 0.7);
 }
 
@@ -427,9 +474,9 @@ select option {
 
 .browser-count {
   position: fixed;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%) translateY(4px);
+  right: 36px;
+  bottom: 6px;
+  transform: translateY(4px);
   display: flex;
   align-items: center;
   padding: 5px 12px;
@@ -447,7 +494,7 @@ select option {
 
 .browser-count.visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 .browser-count-number {
@@ -459,3 +506,68 @@ select option {
   font-variant-numeric: tabular-nums;
 }
 
+.photo-details:not([hidden]) {
+  position: fixed;
+  left: 50%;
+  bottom: 8px;
+  display: flex;
+  width: min(720px, calc(100vw - 32px));
+  gap: 5px;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.photo-detail {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.42);
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8);
+  text-decoration: none;
+}
+
+.photo-detail-label {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.photo-detail-text {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-ai-location-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.photo-ai-map-link {
+  flex: none;
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.photo-detail[href]:hover {
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .photo-details:not([hidden]) {
+    bottom: 38px;
+  }
+}

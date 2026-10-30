@@ -53,7 +53,7 @@
     });
     const data = await fetchJson(`${FORECAST_URL}?${params.toString()}`);
     return {
-      city: geo.city || "",
+      city: geo.city || geo.region || geo.country || "",
       days: data.daily.time.map((date, i) => ({
         date,
         code: data.daily.weather_code[i],
@@ -66,6 +66,21 @@
   function render(forecast) {
     weatherEl.innerHTML = "";
 
+    const dateEl = document.createElement("div");
+    dateEl.className = "weather-date";
+    dateEl.textContent = new Date().toLocaleDateString([], {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+
+    const daysEl = document.createElement("div");
+    daysEl.className = "weather-days";
+    const futureEl = document.createElement("div");
+    futureEl.className = "weather-future";
+    futureEl.append(dateEl, daysEl);
+    let todayCell;
+
     forecast.days.forEach((day, i) => {
       const { icon, label } = describeCode(day.code);
       // dates are local calendar days (YYYY-MM-DD); parse at noon to avoid TZ drift
@@ -76,6 +91,7 @@
 
       const cell = document.createElement("div");
       cell.className = "weather-day";
+      if (i === 0) cell.classList.add("weather-day-today");
       cell.title = label;
 
       const nameEl = document.createElement("div");
@@ -95,9 +111,17 @@
       tempEl.appendChild(minEl);
 
       cell.append(nameEl, iconEl, tempEl);
-      weatherEl.appendChild(cell);
+      if (i === 0 && forecast.city) {
+        const locationEl = document.createElement("div");
+        locationEl.className = "weather-location";
+        locationEl.textContent = forecast.city;
+        cell.appendChild(locationEl);
+      }
+      if (i === 0) todayCell = cell;
+      else daysEl.appendChild(cell);
     });
 
+    if (todayCell) weatherEl.append(todayCell, futureEl);
     if (forecast.city) weatherEl.title = `7-day forecast for ${forecast.city}`;
     weatherEl.classList.add("loaded");
   }

@@ -16,7 +16,10 @@
   "host_permissions": [
     "https://pixabay.com/*",
     "https://script.google.com/*",
-    "https://script.googleusercontent.com/*"
+    "https://script.googleusercontent.com/*",
+    "https://get.geojs.io/*",
+    "https://api.open-meteo.com/*",
+    "https://openrouter.ai/*"
   ],
   "background": {
     "service_worker": "js/background.js"
