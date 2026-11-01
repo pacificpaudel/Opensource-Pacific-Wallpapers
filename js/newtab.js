@@ -14,7 +14,7 @@
   const REMOTE_LOCATION_CACHE_URL =
     "https://raw.githubusercontent.com/pacificpaudel/Opensource-Pacific-Wallpapers/main/location-cache.json";
   const OPENROUTER_MODEL = "google/gemini-4-argon";
-  const GEMINI_MODEL = "gemini-2.5-pro";
+  const GEMINI_MODEL = "gemini-3.1-pro-preview";
   const GEMINI_MODEL_PREFERENCES = [
     GEMINI_MODEL,
     "gemini-3.8-flash",
@@ -239,7 +239,7 @@
     if (location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude)) {
       const center = encodeURIComponent(`${location.latitude},${location.longitude}`);
       mapLink.href =
-        `https://www.google.com/maps/@?api=1&map_action=map&center=${center}&zoom=12&basemap=satellite`;
+        `https://www.google.com/maps/search/?api=1&query=${center}`;
       mapLink.hidden = false;
     } else {
       mapLink.removeAttribute("href");
