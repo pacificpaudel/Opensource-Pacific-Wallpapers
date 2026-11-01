@@ -64,7 +64,7 @@
       </div>
     </div>
     <div class="photo-detail">
-      <span class="photo-detail-label">AI location</span>
+      <span class="photo-detail-label">OpenRouter location</span>
       <div class="photo-ai-location-row">
         <span id="photo-ai-location-text" class="photo-detail-text"></span>
         <a
@@ -74,6 +74,21 @@
           rel="noopener noreferrer"
           aria-label="Open satellite view of this location in Google Maps"
           title="Open satellite view of this location in Google Maps"
+          hidden
+        >📍</a>
+      </div>
+    </div>
+    <div class="photo-detail">
+      <span class="photo-detail-label">Gemini location</span>
+      <div class="photo-ai-location-row">
+        <span id="photo-gemini-location-text" class="photo-detail-text"></span>
+        <a
+          id="photo-gemini-map-link"
+          class="photo-ai-map-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open Gemini identified location in Google Maps"
+          title="Open Gemini identified location in Google Maps"
           hidden
         >📍</a>
       </div>
@@ -131,7 +146,7 @@
       <label class="field-label" for="gemini-key-input">Google Gemini API key</label>
       <input id="gemini-key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false" />
       <p class="hint">
-        Used as a fallback if OpenRouter is unavailable or cannot identify the place.
+        Used for an independent, higher-capacity location lookup.
         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Get a Gemini API key</a>.
         Images are sent to Gemini for analysis and usage may incur a charge. The key is saved in this browser only.
       </p>

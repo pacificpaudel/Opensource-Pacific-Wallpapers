@@ -21,6 +21,7 @@
     "https://api.open-meteo.com/*",
     "https://openrouter.ai/*",
     "https://generativelanguage.googleapis.com/*",
+    "https://raw.githubusercontent.com/*",
     "https://picsum.photos/*",
     "https://*.picsum.photos/*",
     "https://cdn.pixabay.com/*"

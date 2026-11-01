@@ -533,6 +533,22 @@ select option {
   text-decoration: none;
 }
 
+.photo-detail.cache-hit {
+  border-color: rgba(255, 232, 135, 0.9);
+  background: rgba(255, 242, 173, 0.94);
+  color: #302900;
+  text-shadow: none;
+}
+
+.photo-detail.cache-hit .photo-detail-label {
+  color: #514300;
+  opacity: 0.8;
+}
+
+.photo-detail.cache-hit .photo-detail-text {
+  color: #302900;
+}
+
 .photo-detail-label {
   font-size: 8px;
   font-weight: 600;
@@ -573,5 +589,11 @@ select option {
 @media (max-width: 600px) {
   .photo-details:not([hidden]) {
     bottom: 38px;
+    flex-wrap: wrap;
+    width: min(420px, calc(100vw - 32px));
+  }
+
+  .photo-details .photo-detail {
+    flex-basis: calc(50% - 5px);
   }
 }

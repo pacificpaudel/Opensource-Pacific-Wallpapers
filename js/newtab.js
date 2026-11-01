@@ -11,8 +11,16 @@
   const OPENROUTER_KEY = "openRouterApiKey";
   const GEMINI_KEY = "geminiApiKey";
   const PHOTO_PLACE_CACHE_KEY = "photoPlaceCache";
+  const REMOTE_LOCATION_CACHE_URL =
+    "https://raw.githubusercontent.com/pacificpaudel/Opensource-Pacific-Wallpapers/main/location-cache.json";
   const OPENROUTER_MODEL = "google/gemini-4-argon";
-  const GEMINI_MODEL = "gemini-2.5-flash";
+  const GEMINI_MODEL = "gemini-2.5-pro";
+  const GEMINI_MODEL_PREFERENCES = [
+    GEMINI_MODEL,
+    "gemini-3.8-flash",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+  ];
 
   const els = {
     wallpaper: document.getElementById("wallpaper"),
@@ -23,6 +31,8 @@
     photoLocationMapLink: document.getElementById("photo-location-map-link"),
     photoAiLocationText: document.getElementById("photo-ai-location-text"),
     photoAiMapLink: document.getElementById("photo-ai-map-link"),
+    photoGeminiLocationText: document.getElementById("photo-gemini-location-text"),
+    photoGeminiMapLink: document.getElementById("photo-gemini-map-link"),
     gearBtn: document.getElementById("gear-btn"),
     panel: document.getElementById("panel"),
     closePanel: document.getElementById("close-panel"),
@@ -214,40 +224,73 @@
       els.photoLocationMapLink.removeAttribute("href");
       els.photoLocationMapLink.hidden = true;
     }
-    setPhotoAILocation(imageURL ? "Finding place…" : "Unavailable");
+    setProviderLocation("openRouter", imageURL ? "Finding place…" : "Unavailable");
+    setProviderLocation("gemini", imageURL ? "Finding place…" : "Unavailable");
     els.photoDetails.hidden = false;
-    if (imageURL) identifyPhotoPlace(imageURL, requestId);
+    if (imageURL) identifyPhotoPlaces(imageURL, requestId);
   }
 
-  function setPhotoAILocation(place) {
-    els.photoAiLocationText.textContent = place;
-    const hasIdentifiedPlace =
-      place &&
-      place !== "Could not identify confidently" &&
-      !/^(finding place|unavailable|add an openrouter key|could not identify|error:)/i.test(place);
-    if (hasIdentifiedPlace) {
-      const { latitude, longitude } = currentPhoto || {};
-      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-        const center = encodeURIComponent(`${latitude},${longitude}`);
-        els.photoAiMapLink.href =
-          `https://www.google.com/maps/@?api=1&map_action=map&center=${center}&zoom=12&basemap=satellite`;
-        els.photoAiMapLink.hidden = false;
-      } else {
-        els.photoAiMapLink.removeAttribute("href");
-        els.photoAiMapLink.hidden = true;
-      }
+  function setProviderLocation(provider, place, location, fromCache = false) {
+    const text = provider === "gemini" ? els.photoGeminiLocationText : els.photoAiLocationText;
+    const mapLink = provider === "gemini" ? els.photoGeminiMapLink : els.photoAiMapLink;
+    const card = text.closest(".photo-detail");
+    text.textContent = place;
+    card.classList.toggle("cache-hit", fromCache);
+    if (location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude)) {
+      const center = encodeURIComponent(`${location.latitude},${location.longitude}`);
+      mapLink.href =
+        `https://www.google.com/maps/@?api=1&map_action=map&center=${center}&zoom=12&basemap=satellite`;
+      mapLink.hidden = false;
     } else {
-      els.photoAiMapLink.removeAttribute("href");
-      els.photoAiMapLink.hidden = true;
+      mapLink.removeAttribute("href");
+      mapLink.hidden = true;
     }
   }
 
-  async function fetchGeminiImage(imageURL) {
+  async function getImageCacheData(imageURL) {
     const response = await fetch(imageURL);
-    if (!response.ok) throw new Error(`Could not load photo for Gemini (${response.status}).`);
+    if (!response.ok) throw new Error(`Could not load photo for location lookup (${response.status}).`);
+    const imageBlob = await response.blob();
+    const digest = await crypto.subtle.digest("SHA-256", await imageBlob.arrayBuffer());
+    const imageHash = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
+    return { imageHash, imageBlob };
+  }
 
-    const bitmap = await createImageBitmap(await response.blob());
-    const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+  async function getRemoteLocationCache() {
+    try {
+      const response = await fetch(REMOTE_LOCATION_CACHE_URL, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Shared location cache request failed (${response.status}).`);
+      }
+      const data = await response.json();
+      if (data?.version !== 1 || !Array.isArray(data.entries)) {
+        throw new Error("Shared location cache has an unsupported format.");
+      }
+      return data.entries.filter(
+        (entry) =>
+          /^[a-f0-9]{64}$/i.test(entry.imageHash) &&
+          ["openRouter", "gemini"].includes(entry.provider) &&
+          typeof entry.place === "string" &&
+          entry.place.length > 0 &&
+          entry.place.length <= 100 &&
+          Number.isFinite(entry.latitude) &&
+          entry.latitude >= -90 &&
+          entry.latitude <= 90 &&
+          Number.isFinite(entry.longitude) &&
+          entry.longitude >= -180 &&
+          entry.longitude <= 180
+      );
+    } catch (error) {
+      console.warn("Could not load shared location cache; using local cache and AI.", error);
+      return [];
+    }
+  }
+
+  async function fetchGeminiImage(imageBlob) {
+    const bitmap = await createImageBitmap(imageBlob);
+    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);
@@ -259,16 +302,37 @@
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
 
-    const imageBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-    if (!imageBlob) throw new Error("Could not encode photo for Gemini.");
+    const encodedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    if (!encodedBlob) throw new Error("Could not encode photo for Gemini.");
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.onerror = () => reject(new Error("Could not read photo for Gemini."));
-      reader.readAsDataURL(imageBlob);
+      reader.readAsDataURL(encodedBlob);
     });
     if (typeof dataUrl !== "string") throw new Error("Could not encode photo for Gemini.");
-    return { mimeType: imageBlob.type, data: dataUrl.split(",")[1] };
+    return { mimeType: encodedBlob.type, data: dataUrl.split(",")[1] };
+  }
+
+  async function getAvailableGeminiModel(apiKey) {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+      headers: { "x-goog-api-key": apiKey },
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error?.message || `Gemini model lookup failed (${response.status}).`);
+    }
+
+    const availableModels = (data?.models || [])
+      .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+      .map((model) => model.name?.replace(/^models\//, ""))
+      .filter(Boolean);
+    const model = GEMINI_MODEL_PREFERENCES.find((name) => availableModels.includes(name));
+    if (model) return model;
+
+    const otherVisionModels = availableModels.filter((name) => /^gemini-.*-(pro|flash)(-|$)/i.test(name));
+    if (otherVisionModels.length) return otherVisionModels[0];
+    throw new Error("This Gemini API key has no available Gemini model that supports image analysis.");
   }
 
   async function requestOpenRouterLocation(apiKey, imageURL) {
@@ -309,10 +373,13 @@
     return answer;
   }
 
-  async function requestGeminiLocation(apiKey, imageURL) {
-    const image = await fetchGeminiImage(imageURL);
+  async function requestGeminiLocation(apiKey, imageBlob) {
+    const [image, model] = await Promise.all([
+      fetchGeminiImage(imageBlob),
+      getAvailableGeminiModel(apiKey),
+    ]);
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
         headers: {
@@ -330,7 +397,10 @@
               { inlineData: image },
             ],
           }],
-          generationConfig: { temperature: 0, maxOutputTokens: 80 },
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 1024,
+          },
         }),
       }
     );
@@ -338,12 +408,20 @@
     if (!response.ok) {
       throw new Error(data?.error?.message || `Gemini request failed (${response.status}).`);
     }
-    const answer = data?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text)
+    const candidate = data?.candidates?.find((item) => item.content?.parts?.length);
+    if (!candidate) {
+      const reason = data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason;
+      throw new Error(reason
+        ? `Gemini returned no answer (${reason}).`
+        : "Gemini returned no answer. Check that the API key has access to this model.");
+    }
+    const answer = candidate.content.parts
+      .filter((part) => part.thought !== true)
+      .map((part) => part.text)
       .filter((text) => typeof text === "string")
       .join("\n");
-    if (!answer?.trim()) throw new Error("Gemini returned no place identification.");
-    return answer;
+    if (!answer?.trim()) throw new Error("Gemini returned no text answer.");
+    return { answer, model };
   }
 
   function parsePhotoLocation(answer, provider) {
@@ -367,7 +445,7 @@
     return { place: locationName.slice(0, 100), latitude, longitude };
   }
 
-  async function identifyPhotoPlace(imageURL, requestId) {
+  async function identifyPhotoPlaces(imageURL, requestId) {
     try {
       const {
         [OPENROUTER_KEY]: openRouterKey,
@@ -380,74 +458,106 @@
       });
       const cache = Array.isArray(storedCache) ? storedCache : [];
       if (requestId !== photoRequestId) return;
-      if (!openRouterKey && !geminiKey) {
-        setPhotoAILocation("Add an OpenRouter or Gemini key in settings");
-        return;
-      }
-
-      const cached = cache.find(
-        (entry) =>
-          entry.imageURL === imageURL &&
-          [OPENROUTER_MODEL, GEMINI_MODEL].includes(entry.model) &&
-          Number.isFinite(entry.latitude) &&
-          Number.isFinite(entry.longitude)
-      );
-      if (cached) {
-        currentPhoto = { ...currentPhoto, ...cached };
-        setPhotoAILocation(cached.place);
-        return;
-      }
-
+      const [imageData, remoteCache] = await Promise.all([
+        getImageCacheData(imageURL),
+        getRemoteLocationCache(),
+      ]);
+      if (requestId !== photoRequestId) return;
+      const { imageHash, imageBlob } = imageData;
       const providers = [
-        ...(openRouterKey
-          ? [{ name: "OpenRouter", model: OPENROUTER_MODEL, request: () => requestOpenRouterLocation(openRouterKey, imageURL) }]
-          : []),
-        ...(geminiKey
-          ? [{ name: "Gemini", model: GEMINI_MODEL, request: () => requestGeminiLocation(geminiKey, imageURL) }]
-          : []),
+        {
+          id: "openRouter",
+          name: "OpenRouter",
+          model: OPENROUTER_MODEL,
+          apiKey: openRouterKey,
+          request: () => requestOpenRouterLocation(openRouterKey, imageURL),
+        },
+        {
+          id: "gemini",
+          name: "Gemini",
+          model: GEMINI_MODEL,
+          apiKey: geminiKey,
+          request: () => requestGeminiLocation(geminiKey, imageBlob),
+        },
       ];
-      let lastError;
-      let result;
-      for (const provider of providers) {
-        try {
-          const answer = await provider.request();
-          const location = parsePhotoLocation(answer, provider.name);
-          if (!location) continue;
 
-          result = { imageURL, model: provider.model, ...location };
-          break;
-        } catch (error) {
-          lastError = error;
-          console.error(error);
+      const results = await Promise.all(providers.map(async (provider) => {
+        const sharedCached = remoteCache.find(
+          (entry) => entry.imageHash === imageHash && entry.provider === provider.id
+        );
+        if (sharedCached) {
+          if (requestId === photoRequestId) {
+            setProviderLocation(provider.id, sharedCached.place, sharedCached, true);
+          }
+          return null;
         }
-      }
 
-      if (result) {
+        const cached = cache.find(
+          (entry) =>
+            entry.imageURL === imageURL &&
+            (entry.provider === provider.id || entry.model === provider.model) &&
+            Number.isFinite(entry.latitude) &&
+            Number.isFinite(entry.longitude)
+        );
+        if (cached) {
+          if (requestId === photoRequestId) {
+            setProviderLocation(provider.id, cached.place, cached, true);
+          }
+          return null;
+        }
+
+        if (!provider.apiKey) {
+          if (requestId === photoRequestId) {
+            setProviderLocation(provider.id, "Add this provider's API key in settings");
+          }
+          return null;
+        }
+
+        try {
+          const response = await provider.request();
+          const answer = typeof response === "string" ? response : response.answer;
+          const location = parsePhotoLocation(answer, provider.name);
+          if (!location) {
+            if (requestId === photoRequestId) {
+              setProviderLocation(provider.id, "Could not identify confidently");
+            }
+            return null;
+          }
+          const model = typeof response === "string" ? provider.model : response.model;
+          const result = { imageURL, provider: provider.id, model, ...location };
+          if (requestId === photoRequestId) {
+            setProviderLocation(provider.id, result.place, result);
+          }
+          return result;
+        } catch (error) {
+          console.error(error);
+          if (requestId === photoRequestId) {
+            const message = error instanceof Error ? error.message : "Unknown error";
+            setProviderLocation(provider.id, `Error: ${message}`.slice(0, 180));
+          }
+          return null;
+        }
+      }));
+
+      const newResults = results.filter(Boolean);
+      if (newResults.length) {
         const updatedCache = [
-          result,
-          ...cache.filter((entry) => entry.imageURL !== imageURL),
+          ...newResults,
+          ...cache.filter(
+            (entry) =>
+              !newResults.some(
+                (result) => result.imageURL === entry.imageURL && result.model === entry.model
+              )
+          ),
         ].slice(0, 50);
         await setLocalData({ [PHOTO_PLACE_CACHE_KEY]: updatedCache });
-        if (requestId === photoRequestId) {
-          currentPhoto = { ...currentPhoto, ...result };
-          setPhotoAILocation(result.place);
-        }
-        return;
-      }
-
-      if (requestId === photoRequestId) {
-        if (lastError) {
-          const message = lastError instanceof Error ? lastError.message : "Unknown error";
-          setPhotoAILocation(`Error: ${message}`.slice(0, 100));
-        } else {
-          setPhotoAILocation("Could not identify confidently");
-        }
       }
     } catch (error) {
       console.error(error);
       if (requestId === photoRequestId) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        setPhotoAILocation(`Error: ${message}`.slice(0, 100));
+        setProviderLocation("openRouter", `Error: ${message}`.slice(0, 100));
+        setProviderLocation("gemini", `Error: ${message}`.slice(0, 100));
       }
     }
   }
@@ -668,7 +778,7 @@
         const apiKey = els.openRouterKeyInput.value.trim();
         await setLocalData({ [OPENROUTER_KEY]: apiKey });
         setStatus("OpenRouter key saved in this browser.", "success");
-        if (currentPhoto) identifyPhotoPlace(currentPhoto.imageURL, currentPhoto.requestId);
+        if (currentPhoto) identifyPhotoPlaces(currentPhoto.imageURL, currentPhoto.requestId);
       } catch (error) {
         console.error(error);
         setStatus(error.message || "Failed to save OpenRouter key.", "error");
@@ -680,7 +790,7 @@
         const apiKey = els.geminiKeyInput.value.trim();
         await setLocalData({ [GEMINI_KEY]: apiKey });
         setStatus("Gemini key saved in this browser.", "success");
-        if (currentPhoto) identifyPhotoPlace(currentPhoto.imageURL, currentPhoto.requestId);
+        if (currentPhoto) identifyPhotoPlaces(currentPhoto.imageURL, currentPhoto.requestId);
       } catch (error) {
         console.error(error);
         setStatus(error.message || "Failed to save Gemini key.", "error");
